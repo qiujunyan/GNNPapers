@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup as bs
 import urllib.request
 import os
 from multiprocessing import Pool
+import re
 
 
 def html2text(url):
@@ -15,11 +16,16 @@ def get_name(a):
     for p in a.parents:
         if p.name == "ol":
             if len(p.attrs) == 0:
-                sibling = p.find_previous_sibling("h2").find("a", attrs={"href": "#content"})
+                sibling = p.find_previous_sibling(re.compile("h[23]"))
             else:
                 p = p.find_parent("details")
-                sibling = p.find_previous_sibling("h2").find("a", attrs={"href": "#content"})
-            return sibling.text
+                sibling = p.find_previous_sibling(re.compile("h[23]"))
+            if sibling.name == "h2":
+                return sibling.find("a", attrs={"href": "#content"}).text
+            elif sibling.name=="h3":
+                pre_sibling = sibling.find_previous_sibling("h2").find("a", attrs={"href": "#content"}).text
+                sibling = sibling.find("a", attrs={"href": "#content"}).text
+                return os.path.join(pre_sibling, sibling)
 
 
 def parse(url):
@@ -34,7 +40,7 @@ def parse(url):
     for i, a in enumerate(soup.find_all("a", attrs={"rel": "nofollow"}, string="paper")):
         category = os.path.join(saved_dir, get_name(a))
         if not os.path.isdir(category):
-            os.mkdir(category)
+            os.makedirs(category)
         downld_info.append((a["href"], os.path.join(category, a.parent.text[:-6]+"pdf")))
     return downld_info
 
